@@ -1,58 +1,54 @@
-## Overview
-DebatingAI is a command-line interface (CLI) script that enables you to watch two AI models, Zephyr and Mistral, engage in a debate on any topic of your choice. The AIs use different perspectives and approaches to create an engaging and insightful discussion.
+# AI Debate
 
-## Features
-- Uses local Ollama models (no API keys required)
-- Real-time streaming of AI responses
-- Color-coded outputs for easy reading
-- Interactive debate format
-- Supports continuous back-and-forth discussion
+A command-line tool that creates a debate between two AI models (Zephyr and Mistral) using Ollama. The models engage in a structured debate with distinct personalities and perspectives.
 
-## Prerequisites
-- Python 3.x
-- Ollama installed and running locally
-- Required Python packages (install via `pip install -r requirements.txt`):
-  - OpenAI
-  - subprocess
-  - colorama
+## Requirements
 
-## Installation
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/yourusername/DebatingAI.git
-   cd DebatingAI
-   ```
+1. Python 3.7+
+2. Ollama installed and running locally
+3. Required Python packages (install via `pip install -r requirements.txt`):
+   - openai>=1.0.0 (for Ollama API wrapper)
+   - colorama>=0.4.6 (for terminal colors)
 
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Setup
 
-3. Make sure Ollama is installed and running with the required models:
+1. Install Ollama from https://ollama.ai/
+2. Pull the required models:
    ```bash
    ollama pull zephyr:7b
    ollama pull mistral:7b
    ```
+3. Install Python dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 ## Usage
-1. Run the script:
+
+1. Make sure Ollama is running locally (default port: 11434)
+2. Run the script:
    ```bash
    python DebatingAI.py
    ```
+3. Enter a topic when prompted
+4. Watch the AI models debate!
+5. After 10 exchanges, choose to continue or end the debate
 
-2. Enter a topic when prompted
-3. Watch as Zephyr (cyan) and Mistral (magenta) debate the topic
-4. After 10 exchanges, you'll be asked if you want to continue
-5. Type 'y' to continue or 'n' to end the debate
+## Features
 
-## How it Works
-- Zephyr is configured to be objective and focused on creating deeper understanding
-- Mistral is configured to be more analytical and point out flaws in arguments
-- Both models maintain a respectful and constructive dialogue
-- The debate continues in rounds of 10 exchanges until you choose to end it
+- Real-time streaming responses with color-coded output
+- Natural conversation flow between AI models
+- Distinct personalities:
+  - Zephyr: Empathetic, focused on understanding and exploration
+  - Mistral: Analytical, focused on challenging and improving arguments
+- Interactive debate format with user control
+- Beautiful CLI interface with colored output and box-drawing characters
 
-## Contributing
-Feel free to open issues or submit pull requests to improve this project.
+## Technical Details
 
-## License
-This project is open source and available under the MIT License.
+- Uses Ollama's OpenAI-compatible API endpoint
+- Implements streaming for real-time response display
+- Maintains conversation history for context
+- Uses colorama for cross-platform terminal colors
+- Implements few-shot prompting for better conversation quality
+
