@@ -80,11 +80,12 @@ class DebateManager:
         """Call an AI model with retry logic and proper error handling."""
         messages = [{"role": "system", "content": system_prompt}]
         
-        # Build message history
-        for u, t in zip(user_messages, ai_messages):
-            messages.append({"role": "user", "content": u})
-            if t:
-                messages.append({"role": "assistant", "content": t})
+        # Build message history in chronological order
+        for i in range(max(len(user_messages), len(ai_messages))):
+            if i < len(user_messages):
+                messages.append({"role": "user", "content": user_messages[i]})
+            if i < len(ai_messages) and ai_messages[i]:
+                messages.append({"role": "assistant", "content": ai_messages[i]})
 
         for attempt in range(MAX_RETRIES):
             try:
@@ -122,9 +123,9 @@ class DebateManager:
             self.zephyr_client, 
             MODEL_ZEPHYR, 
             ZEPHYR_SYSTEM_PROMPT,
-            self.mistral_messages,
+            self.mistral_messages,  # Zephyr responds to Mistral's messages
             self.zephyr_messages,
-            Fore.CYAN,
+            Fore.CYAN,  # Zephyr is CYAN
             "Zephyr"
         )
 
@@ -134,9 +135,9 @@ class DebateManager:
             self.mistral_client,
             MODEL_MISTRAL,
             MISTRAL_SYSTEM_PROMPT,
-            self.zephyr_messages,
+            self.zephyr_messages,  # Mistral responds to Zephyr's messages
             self.mistral_messages,
-            Fore.MAGENTA,
+            Fore.MAGENTA,  # Mistral is MAGENTA
             "Mistral"
         )
 
@@ -180,7 +181,7 @@ def main():
 
     # Initial messages
     initial_zephyr = f"Hi! I'm Zephyr, your debate partner. Let's dive into the topic: {debate_topic}"
-    initial_mistral = f"Hi! I'm Mistral, your debate partner. Let's dive into the topic: {debate_topic}"
+    initial_mistral = f"Hi Zephyr, I'm Mistral, your debate partner. What do you have to say about {debate_topic}?"
     
     debate.add_message(initial_zephyr, True)
     debate.add_message(initial_mistral, False)
@@ -198,20 +199,20 @@ def main():
 
     # Main debate loop
     while True:
-        for _ in range(10):
-            zephyr_response = debate.call_zephyr()
-            debate.add_message(zephyr_response, True)
-            
-            mistral_response = debate.call_mistral()
-            debate.add_message(mistral_response, False)
+
+        zephyr_response = debate.call_zephyr()
+        debate.add_message(zephyr_response, True)
         
+        mistral_response = debate.call_mistral()
+        debate.add_message(mistral_response, False)
+
         print(f"\n{Fore.YELLOW}╭──────────────────────────────╮")
-        cont = input(f"{Fore.YELLOW}│ {Fore.WHITE}Continue debate? (y/n): {Fore.YELLOW}│\n{Fore.YELLOW}╰──────────────────────────────╯{Style.RESET_ALL} ")
+        cont = input(f"{Fore.YELLOW}│ {Fore.WHITE}Continue debate? (y/n): {Fore.YELLOW}     │\n{Fore.YELLOW}╰──────────────────────────────╯{Style.RESET_ALL} ")
         if cont.upper() == "N":
             break
     
     print(f"\n{Fore.YELLOW}╭──────────────────────────────╮")
-    print(f"│ {Fore.WHITE}Thank you for debating! {Fore.YELLOW}│")
+    print(f"│ {Fore.WHITE}Thank you for debating! {Fore.YELLOW}     │")
     print(f"╰──────────────────────────────╯{Style.RESET_ALL}\n")
 
 if __name__ == "__main__":
