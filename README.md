@@ -1,54 +1,88 @@
-# AI Debate
+# DebatingAI
 
-A command-line tool that creates a debate between two AI models (Zephyr and Mistral) using Ollama. The models engage in a structured debate with distinct personalities and perspectives.
+A Python-based AI debate system that facilitates structured discussions between two AI models (Zephyr and Mistral) using Ollama. The system provides a real-time, interactive debate experience with distinct AI personalities and perspectives.
+
+## Features
+
+- 🤖 **Dual AI Debate**: Engage two different AI models (Zephyr and Mistral) in a structured debate
+- 🎨 **Colorful Interface**: Clear visual separation between speakers with color-coded responses
+- 💬 **Real-time Streaming**: Watch the debate unfold in real-time with streaming responses
+- 🔄 **Robust Error Handling**: Automatic retries and graceful error recovery
+- 🎯 **Structured Conversation**: Maintains conversation history and context
+- 🎭 **Distinct Personalities**: Each AI has a unique debating style and perspective
+
+## Technical Details
+
+### Architecture
+- Object-oriented design with `DebateManager` class for state management
+- Type-hinted code for better IDE support and maintainability
+- Modular structure for easy extension and modification
+
+### AI Models
+- **Zephyr (7B)**: Empathetic and thoughtful debate partner
+- **Mistral (7B)**: Dynamic and insightful counter-perspective
+- Both models run locally via Ollama
+
+### Error Handling
+- Automatic retry mechanism for failed API calls
+- Graceful degradation when responses fail
+- Clear error messages and status updates
 
 ## Requirements
 
-1. Python 3.7+
-2. Ollama installed and running locally
-3. Required Python packages (install via `pip install -r requirements.txt`):
-   - openai>=1.0.0 (for Ollama API wrapper)
-   - colorama>=0.4.6 (for terminal colors)
+- Python 3.8 or higher
+- Ollama installed and running locally
+- Required Python packages (see requirements.txt)
 
 ## Setup
 
-1. Install Ollama from https://ollama.ai/
-2. Pull the required models:
+1. **Install Ollama**:
+   ```bash
+   # macOS/Linux
+   curl https://ollama.ai/install.sh | sh
+   ```
+
+2. **Pull Required Models**:
    ```bash
    ollama pull zephyr:7b
    ollama pull mistral:7b
    ```
-3. Install Python dependencies:
+
+3. **Install Python Dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
 
+4. **Start Ollama**:
+   ```bash
+   ollama serve
+   ```
+
 ## Usage
 
-1. Make sure Ollama is running locally (default port: 11434)
-2. Run the script:
+1. Run the script:
    ```bash
    python DebatingAI.py
    ```
-3. Enter a topic when prompted
-4. Watch the AI models debate!
-5. After 10 exchanges, choose to continue or end the debate
 
-## Features
+2. Enter a debate topic when prompted
 
-- Real-time streaming responses with color-coded output
-- Natural conversation flow between AI models
-- Distinct personalities:
-  - Zephyr: Empathetic, focused on understanding and exploration
-  - Mistral: Analytical, focused on challenging and improving arguments
-- Interactive debate format with user control
-- Beautiful CLI interface with colored output and box-drawing characters
+3. Watch the AI models debate in real-time
 
-## Technical Details
+4. Choose to continue or end the debate after each round
 
-- Uses Ollama's OpenAI-compatible API endpoint
-- Implements streaming for real-time response display
-- Maintains conversation history for context
-- Uses colorama for cross-platform terminal colors
-- Implements few-shot prompting for better conversation quality
+## Code Structure
 
+```
+DebatingAI/
+├── DebatingAI.py      # Main application file
+├── requirements.txt   # Python dependencies
+└── README.md         # This documentation
+```
+
+### Key Components
+
+- `DebateManager`: Core class managing debate state and AI interactions
+- `call_ai()`: Generic method for AI model communication
+- `add_message()`: Message history management
+- `rainbow_text()`: UI enhancement for user prompts

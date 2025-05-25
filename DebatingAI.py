@@ -2,11 +2,14 @@ from openai import OpenAI # API call wrapping for ollama
 from colorama import Fore, Style, init as colorama_init
 import time
 import sys
+from typing import List, Dict, Optional
 
 colorama_init(autoreset=True)           # makes ANSI colours work on Windows, too
 
 MODEL_ZEPHYR = "zephyr:7b" # 7b is the size of the model
 MODEL_MISTRAL = "mistral:7b" # using mistral as the second debater
+MAX_RETRIES = 3
+RETRY_DELAY = 1  # seconds
 
 # in order to keep this free, and without api keys we will use two local ollama models
 # zephyr and mistral will debate with different perspectives
@@ -58,114 +61,149 @@ Mistral: "That's one perspective, but consider this: studies show that heavy soc
 
 Remember: Your goal is to push the conversation forward by offering fresh insights and perspectives."""
 
-# Configure OpenAI clients with dummy API key for Ollama
-Zephyr = OpenAI(
-    base_url="http://localhost:11434/v1",  # Updated URL to include /v1, this is necessary for the ollama api to work with an openai wrapper
-    api_key="sk-dummy-key"  # Dummy API key required by the client
-)
-Mistral = OpenAI(
-    base_url="http://localhost:11434/v1",  # Updated URL to include /v1, this is necessary for the ollama api to work with an openai wrapper
-    api_key="sk-dummy-key"  # Dummy API key required by the client
-)
+class DebateManager:
+    def __init__(self):
+        self.zephyr_messages: List[str] = []
+        self.mistral_messages: List[str] = []
+        self.zephyr_client = OpenAI(
+            base_url="http://localhost:11434/v1",
+            api_key="sk-dummy-key"
+        )
+        self.mistral_client = OpenAI(
+            base_url="http://localhost:11434/v1",
+            api_key="sk-dummy-key"
+        )
 
-# Initialize empty lists to store the messages for each model
-zephyr_messages = []
-mistral_messages = []
+    def call_ai(self, client: OpenAI, model: str, system_prompt: str, 
+                user_messages: List[str], ai_messages: List[str], 
+                color: str, name: str) -> Optional[str]:
+        """Call an AI model with retry logic and proper error handling."""
+        messages = [{"role": "system", "content": system_prompt}]
+        
+        # Build message history
+        for u, t in zip(user_messages, ai_messages):
+            messages.append({"role": "user", "content": u})
+            if t:
+                messages.append({"role": "assistant", "content": t})
 
-def rainbow_text(text):
-    colors = [Style.BRIGHT + Fore.RED, 
-              Style.BRIGHT + Fore.YELLOW, 
-              Style.BRIGHT + Fore.GREEN, 
-              Style.BRIGHT + Fore.CYAN, 
-              Style.BRIGHT + Fore.BLUE, 
-              Style.BRIGHT + Fore.MAGENTA]
+        for attempt in range(MAX_RETRIES):
+            try:
+                resp = client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    stream=True
+                )
+
+                full = ""
+                print(f"\n{color}╭─ {name} {Style.RESET_ALL}")
+                print(f"{color}│ {Style.RESET_ALL}", end="", flush=True)
+                
+                for chunk in resp:
+                    delta = chunk.choices[0].delta.content or ""
+                    delta = delta.replace('\n', ' ')
+                    full += delta
+                    print(f"{color}{delta}{Style.RESET_ALL}", end="", flush=True)
+                
+                print(f"\n{color}╰─{Style.RESET_ALL}")
+                print()
+                return full
+
+            except Exception as e:
+                if attempt < MAX_RETRIES - 1:
+                    print(f"{Fore.YELLOW}Retrying {name}... (Attempt {attempt + 1}/{MAX_RETRIES}){Style.RESET_ALL}")
+                    time.sleep(RETRY_DELAY)
+                else:
+                    print(f"{Fore.RED}Error with {name}'s response: {str(e)}{Style.RESET_ALL}")
+                    return None
+
+    def call_zephyr(self) -> Optional[str]:
+        """Call Zephyr with the current message history."""
+        return self.call_ai(
+            self.zephyr_client, 
+            MODEL_ZEPHYR, 
+            ZEPHYR_SYSTEM_PROMPT,
+            self.mistral_messages,
+            self.zephyr_messages,
+            Fore.CYAN,
+            "Zephyr"
+        )
+
+    def call_mistral(self) -> Optional[str]:
+        """Call Mistral with the current message history."""
+        return self.call_ai(
+            self.mistral_client,
+            MODEL_MISTRAL,
+            MISTRAL_SYSTEM_PROMPT,
+            self.zephyr_messages,
+            self.mistral_messages,
+            Fore.MAGENTA,
+            "Mistral"
+        )
+
+    def add_message(self, message: Optional[str], is_zephyr: bool) -> None:
+        """Add a message to the appropriate history."""
+        if is_zephyr:
+            self.zephyr_messages.append(message or "")
+        else:
+            self.mistral_messages.append(message or "")
+
+def rainbow_text(text: str) -> None:
+    """Display text in cycling rainbow colors."""
+    colors = [
+        Style.BRIGHT + Fore.RED,
+        Style.BRIGHT + Fore.YELLOW,
+        Style.BRIGHT + Fore.GREEN,
+        Style.BRIGHT + Fore.CYAN,
+        Style.BRIGHT + Fore.BLUE,
+        Style.BRIGHT + Fore.MAGENTA
+    ]
     
-    # Print the text in rainbow colors
     for color in colors:
         sys.stdout.write('\r' + color + text)
         sys.stdout.flush()
         time.sleep(0.3)
     print(Style.RESET_ALL)
 
-# Function to call Zephyr
-def callZephyr():
-    messages = [{"role": "system", "content": ZEPHYR_SYSTEM_PROMPT}]
-    # Interleave messages chronologically
-    for u, t in zip(mistral_messages, zephyr_messages):
-        messages.append({"role": "user", "content": u})
-        messages.append({"role": "assistant", "content": t})
-
-    resp = Zephyr.chat.completions.create(
-        model=MODEL_ZEPHYR,
-        messages=messages,
-        stream=True
-    )
-
-    full = ""
-    print(f"\n{Fore.CYAN}╭─ Zephyr {Style.RESET_ALL}")
-    print(f"{Fore.CYAN}│ {Style.RESET_ALL}", end="", flush=True)
-    for chunk in resp:
-        delta = chunk.choices[0].delta.content or ""
-        full += delta
-        print(f"{Fore.CYAN}{delta}{Style.RESET_ALL}", end="", flush=True)
-    print(f"\n{Fore.CYAN}╰─{Style.RESET_ALL}")
-    return full
-
-
-def callMistral():
-    messages = [{"role": "system", "content": MISTRAL_SYSTEM_PROMPT}]
-    # Interleave messages chronologically
-    for u, t in zip(zephyr_messages, mistral_messages):
-        messages.append({"role": "user", "content": u})
-        messages.append({"role": "assistant", "content": t})
-
-    resp = Mistral.chat.completions.create(
-        model=MODEL_MISTRAL,
-        messages=messages,
-        stream=True
-    )
-
-    full = ""
-    print(f"\n{Fore.MAGENTA}╭─ Mistral {Style.RESET_ALL}")
-    print(f"{Fore.MAGENTA}│ {Style.RESET_ALL}", end="", flush=True)
-    for chunk in resp:
-        delta = chunk.choices[0].delta.content or ""
-        full += delta
-        print(f"{Fore.MAGENTA}{delta}{Style.RESET_ALL}", end="", flush=True)
-    print(f"\n{Fore.MAGENTA}╰─{Style.RESET_ALL}")
-    return full
-
-
 def main():
-    global zephyr_messages, mistral_messages
+    debate = DebateManager()
+    
+    # Welcome message
     print(f"\n{Fore.YELLOW}╭──────────────────────────────╮")
     print(f"│ {Fore.WHITE} Welcome to the AI Debate!  {Fore.YELLOW} │")
     print(f"{Fore.YELLOW}|{Fore.WHITE} Created by Kendrix Henderson {Fore.YELLOW}|")
     print(f"╰──────────────────────────────╯{Style.RESET_ALL}\n")
     
+    # Get debate topic
     rainbow_text("Please enter a topic to debate on: ")
-    DebateTopic = input()
-    print(f"\n{Fore.YELLOW}Debating on: {Fore.WHITE}{DebateTopic}{Style.RESET_ALL}\n")
+    debate_topic = input()
+    print(f"\n{Fore.YELLOW}Debating on: {Fore.WHITE}{debate_topic}{Style.RESET_ALL}\n")
 
-    # Initialize with opening statements
-    zephyr_messages.append(f"Hi! I'm Zephyr, your debate partner. Let's dive into the topic: {DebateTopic}")
-    mistral_messages.append(f"Hi! I'm Mistral, your debate partner. Let's dive into the topic: {DebateTopic}")
+    # Initial messages
+    initial_zephyr = f"Hi! I'm Zephyr, your debate partner. Let's dive into the topic: {debate_topic}"
+    initial_mistral = f"Hi! I'm Mistral, your debate partner. Let's dive into the topic: {debate_topic}"
     
+    debate.add_message(initial_zephyr, True)
+    debate.add_message(initial_mistral, False)
+    
+    # Display initial messages
     print(f"{Fore.CYAN}╭─ Zephyr {Style.RESET_ALL}")
-    print(f"{Fore.CYAN}│ {zephyr_messages[-1]}{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}│ {initial_zephyr}{Style.RESET_ALL}")
     print(f"{Fore.CYAN}╰─{Style.RESET_ALL}")
+    print()
     
-    print(f"\n{Fore.MAGENTA}╭─ Mistral {Style.RESET_ALL}")
-    print(f"{Fore.MAGENTA}│ {mistral_messages[-1]}{Style.RESET_ALL}")
-    print(f"{Fore.MAGENTA}╰─{Style.RESET_ALL}\n")
+    print(f"{Fore.MAGENTA}╭─ Mistral {Style.RESET_ALL}")
+    print(f"{Fore.MAGENTA}│ {initial_mistral}{Style.RESET_ALL}")
+    print(f"{Fore.MAGENTA}╰─{Style.RESET_ALL}")
+    print()
 
+    # Main debate loop
     while True:
-        for i in range(10):
-            zephyr_response = callZephyr()
-            zephyr_messages.append(zephyr_response)
+        for _ in range(10):
+            zephyr_response = debate.call_zephyr()
+            debate.add_message(zephyr_response, True)
             
-            mistral_response = callMistral()
-            mistral_messages.append(mistral_response)
+            mistral_response = debate.call_mistral()
+            debate.add_message(mistral_response, False)
         
         print(f"\n{Fore.YELLOW}╭──────────────────────────────╮")
         cont = input(f"{Fore.YELLOW}│ {Fore.WHITE}Continue debate? (y/n): {Fore.YELLOW}│\n{Fore.YELLOW}╰──────────────────────────────╯{Style.RESET_ALL} ")
